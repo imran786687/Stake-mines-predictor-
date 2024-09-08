@@ -1,63 +1,60 @@
 import hashlib
 import random
 
-def generate_random(seed):
-    """Generate a random number generator with a given seed."""
-    return random.Random(seed)
+def get_nonce():
+    rand_val = random.random()
+    if rand_val < 0.50:
+        return 1
+    else:
+        return 2
 
-def hash_seed(seed):
-    """Hash the seed using SHA-256 to produce a consistent hash."""
-    return hashlib.sha256(seed.encode('utf-8')).hexdigest()
+def generate_grid(num_mines, client_seed, server_seed, nonce):
+    combined_seed = f"{client_seed}{server_seed}{nonce}"
+    grid_size = 5
+    grid = [[' ' for _ in range(grid_size)] for _ in range(grid_size)]
+    
+    # Generate a hash from the combined seed
+    hash_val = hashlib.sha256(combined_seed.encode()).hexdigest()
+    
+    # Convert the hash to a list of integers
+    int_values = [int(hash_val[i:i+2], 16) for i in range(0, len(hash_val), 2)]
+    
+    # Place mines and gems
+    positions = [(i, j) for i in range(grid_size) for j in range(grid_size)]
+    random.shuffle(positions)
+    
+    for i in range(num_mines):
+        if i < len(positions):
+            x, y = positions[i]
+            grid[x][y] = '💣'
+    
+    for i in range(num_mines, len(positions)):
+        if i < len(positions):
+            x, y = positions[i]
+            grid[x][y] = '💎'
+    
+    return grid
 
-def get_positions(seed, num_boxes, num_mines):
-    """Generate positions for mines based on seed and number of mines."""
-    rng = generate_random(seed)
-    positions = list(range(num_boxes))
-    rng.shuffle(positions)
-    return positions[:num_mines]
-
-def print_board(board, rows, cols):
-    """Print the board in a grid format."""
-    for i in range(rows):
-        print(" ".join(board[i * cols:(i + 1) * cols]))
+def print_grid(grid):
+    for row in grid:
+        print(' '.join(row))
 
 def main():
-    num_boxes = 25
-    num_rows = 5
-    num_cols = 5
-    print("Welcome to the Mine Predictor!")
-    
-    # Input number of mines
-    num_mines = int(input(f"Enter the number of mines (between 1 and {num_boxes - 1}): "))
-    if not (1 <= num_mines < num_boxes):
-        print(f"Invalid number of mines. It must be between 1 and {num_boxes - 1}.")
+    num_mines = int(input("Enter the number of mines (between 1 and 24): "))
+    if not (1 <= num_mines <= 24):
+        print("Invalid number of mines.")
         return
-
-    # Input seeds
-    client_seed = input("Enter the client seed: ")
-    server_seed = input("Enter the server seed (hashed): ")
     
-    # Verify server seed is a valid hash
-    if not len(server_seed) == 64 or not all(c in "0123456789abcdef" for c in server_seed):
-        print("Invalid server seed format. It should be a 64-character hexadecimal string.")
-        return
-
-    # Generate hash for the client seed
-    client_seed_hash = hash_seed(client_seed)
+    client_seed = input("Enter the active client seed: ")
+    server_seed = input("Enter the active server seed: ")
     
-    # Combine client seed hash with server seed to form the final seed
-    final_seed = client_seed_hash + server_seed
+    nonce = get_nonce()
     
-    # Get positions for mines
-    mine_positions = get_positions(final_seed, num_boxes, num_mines)
+    print(f"Selected nonce: {nonce}")
     
-    # Create board
-    board = ['💎'] * num_boxes
-    for pos in mine_positions:
-        board[pos] = '💣'
-    
-    # Print the board
-    print_board(board, num_rows, num_cols)
+    grid = generate_grid(num_mines, client_seed, server_seed, nonce)
+    print("\nGenerated Grid:")
+    print_grid(grid)
 
 if __name__ == "__main__":
     main()
